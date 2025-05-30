@@ -41,11 +41,18 @@ def login():
 def create_promo():
     data = request.json
     brand_id = get_jwt_identity()
+
+    if not data.get('code') or not data.get('description'):
+        return jsonify({'msg': 'Missing code or description'}), 400
+
     new_promo = PromoCode(
         code=data['code'],
         description=data['description'],
         brand_id=brand_id
     )
+
     db.session.add(new_promo)
     db.session.commit()
+
     return jsonify({'msg': 'Promo code created'}), 201
+
