@@ -1,0 +1,15 @@
+# render.yaml
+services:
+  - type: web
+    name: promo-backend
+    env: python
+    buildCommand: ""
+    startCommand: python app.py
+    plan: free
+    envVars:
+      - key: SECRET_KEY
+        value: supersecretkey
+      - key: JWT_SECRET_KEY
+        value: anothersecret
+      - key: DATABASE_URL
+        value: sqlite:///promo.db
