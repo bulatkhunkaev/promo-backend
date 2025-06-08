@@ -39,7 +39,7 @@ def login():
 @routes.route('/promo/create', methods=['POST'])
 @jwt_required()
 def create_promo():
-    brand_id = int(get_jwt_identity())  # ✅ строка → число
+    brand_id = int(get_jwt_identity())
     data = request.get_json()
     promo = PromoCode(
         code=data['code'],
@@ -50,3 +50,15 @@ def create_promo():
     db.session.commit()
     return jsonify({'message': 'Promo created'}), 201
 
+@routes.route('/brands', methods=['GET'])
+def get_brands():
+    brands = Brand.query.all()
+    return jsonify([
+        {
+            'id': b.id,
+            'name': b.name,
+            'channel': b.channel,
+            'avatar': b.avatar,
+            'topic': b.topic
+        } for b in brands
+    ])
