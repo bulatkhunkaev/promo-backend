@@ -8,7 +8,9 @@ from routes import routes
 app = Flask(__name__)
 app.config.from_object(Config)
 
-CORS(app)
+# ✅ Разрешаем CORS для всех доменов
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 JWTManager(app)
 db.init_app(app)
 app.register_blueprint(routes)
