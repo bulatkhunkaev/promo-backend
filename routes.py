@@ -62,3 +62,28 @@ def get_brands():
             'topic': b.topic
         } for b in brands
     ])
+
+@routes.route('/check_subscription', methods=['POST'])
+def check_subscription():
+    data = request.get_json()
+    user_id = str(data.get('user_id'))
+    brand_id = data.get('brand_id')
+
+    if not user_id or not brand_id:
+        return jsonify({'error': 'user_id and brand_id are required'}), 400
+
+    # Проверка: уже есть промокод от этого бренда для этого пользователя?
+    existing = PromoCode.query.filter_by(user_id=user_id, brand_id=brand_id).first()
+    if existing:
+        return jsonify({'code': existing.code}), 200
+
+    # Берем последний промокод этого бренда, который ещё не выдан
+    promo = PromoCode.query.filter_by(brand_id=brand_id, user_id=None).order_by(PromoCode.created_at.desc()).first()
+    if not promo:
+        return jsonify({'error': 'Нет доступных промокодов'}), 404
+
+    # Присваиваем промокод пользователю
+    promo.user_id = user_id
+    db.session.commit()
+
+    return jsonify({'code': promo.code}), 200
