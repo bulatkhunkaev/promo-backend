@@ -4,9 +4,13 @@ from models import Brand, PromoCode
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import datetime
+import requests
+import os
 
 routes = Blueprint('routes', __name__)
 bcrypt = Bcrypt()
+
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
 @routes.route('/register', methods=['POST'])
 def register():
@@ -72,17 +76,43 @@ def check_subscription():
     if not user_id or not brand_id:
         return jsonify({'error': 'user_id and brand_id are required'}), 400
 
-    # Проверка: уже есть промокод от этого бренда для этого пользователя?
+    brand = Brand.query.get(brand_id)
+    if not brand:
+        return jsonify({'error': 'Brand not found'}), 404
+
+    if 't.me/' not in brand.channel:
+        return jsonify({'error': 'Invalid channel link'}), 400
+    channel_username = brand.channel.split('t.me/')[-1].replace('/', '')
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getChatMember"
+    params = {
+        "chat_id": f"@{channel_username}",
+        "user_id": user_id
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        result = response.json()
+
+        if not result.get("ok"):
+            return jsonify({'error': 'Failed to check subscription'}), 500
+
+        status = result["result"]["status"]
+        if status not in ["member", "administrator", "creator"]:
+            return jsonify({'error': 'Вы не подписаны на канал'}), 403
+
+    except Exception as e:
+        return jsonify({'error': 'Telegram API error', 'details': str(e)}), 500
+
+    # Если подписан — продолжаем выдачу промокода
     existing = PromoCode.query.filter_by(user_id=user_id, brand_id=brand_id).first()
     if existing:
         return jsonify({'code': existing.code}), 200
 
-    # Берем последний промокод этого бренда, который ещё не выдан
     promo = PromoCode.query.filter_by(brand_id=brand_id, user_id=None).order_by(PromoCode.created_at.desc()).first()
     if not promo:
         return jsonify({'error': 'Нет доступных промокодов'}), 404
 
-    # Присваиваем промокод пользователю
     promo.user_id = user_id
     db.session.commit()
 
